@@ -48,6 +48,28 @@ const templates = {
             { name: 'placeholder', label: 'Placeholder', type: 'text' }
         ]
     }),
+    checkbox: () => ({
+        type: 'checkbox',
+        label: 'Checkbox label',
+        render: function() {
+            return `<div class="comp-checkbox"><label><input type="checkbox"> ${this.label}</label></div>`;
+        },
+        properties: [
+            { name: 'label', label: 'Label', type: 'text' }
+        ]
+    }),
+    link: () => ({
+        type: 'link',
+        text: 'Click here',
+        url: 'https://example.com',
+        render: function() {
+            return `<div class="comp-link"><a href="${this.url}">${this.text}</a></div>`;
+        },
+        properties: [
+            { name: 'text', label: 'Link Text', type: 'text' },
+            { name: 'url', label: 'URL', type: 'text' }
+        ]
+    }),
     code: () => ({
         type: 'code',
         content: 'const hello = "world";',
@@ -60,35 +82,66 @@ const templates = {
     }),
     container: () => ({
         type: 'container',
+        children: [],
         render: function() {
-            return `<div class="comp-container">Empty container - drag components here</div>`;
+            if (this.children.length === 0) {
+                return `<div class="comp-container drop-zone" data-container-id="${this.id}"><div class="container-placeholder">Drop components here</div></div>`;
+            }
+            return `<div class="comp-container drop-zone" data-container-id="${this.id}">${this.children.map(c => renderChild(c)).join('')}</div>`;
         },
         properties: []
     })
 };
 
-// Drag and drop handlers
+// Render child component inside container
+function renderChild(component) {
+    return `<div class="container-child" data-child-id="${component.id}">
+        ${component.render()}
+        <button class="delete-child-btn">✕</button>
+    </div>`;
+}
+
+// Drag and drop handlers for palette
 document.querySelectorAll('.component-item').forEach(item => {
     item.addEventListener('dragstart', (e) => {
         e.dataTransfer.setData('componentType', item.dataset.type);
+        e.dataTransfer.effectAllowed = 'copy';
     });
 });
 
+// Canvas drag handlers
 canvas.addEventListener('dragover', (e) => {
     e.preventDefault();
-    canvas.classList.add('drag-over');
+    e.stopPropagation();
+    
+    // Find drop zone
+    const dropZone = e.target.closest('.drop-zone, .canvas');
+    if (dropZone) {
+        dropZone.classList.add('drag-over');
+    }
 });
 
-canvas.addEventListener('dragleave', () => {
-    canvas.classList.remove('drag-over');
+canvas.addEventListener('dragleave', (e) => {
+    const dropZone = e.target.closest('.drop-zone, .canvas');
+    if (dropZone && !dropZone.contains(e.relatedTarget)) {
+        dropZone.classList.remove('drag-over');
+    }
 });
 
 canvas.addEventListener('drop', (e) => {
     e.preventDefault();
-    canvas.classList.remove('drag-over');
+    e.stopPropagation();
+    
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
     
     const componentType = e.dataTransfer.getData('componentType');
-    if (componentType) {
+    if (!componentType) return;
+
+    // Check if dropped on a container
+    const dropZone = e.target.closest('.drop-zone');
+    if (dropZone && dropZone.dataset.containerId) {
+        addComponentToContainer(componentType, dropZone.dataset.containerId);
+    } else {
         addComponent(componentType);
     }
 });
@@ -115,28 +168,72 @@ function addComponent(type) {
     // Store component data
     wrapper.__componentData = component;
 
-    // Click to select
-    wrapper.addEventListener('click', (e) => {
-        if (!e.target.classList.contains('delete-btn')) {
-            selectComponent(wrapper);
-        }
-    });
-
-    // Delete button
-    wrapper.querySelector('.delete-btn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        wrapper.remove();
-        if (selectedComponent === wrapper) {
-            selectedComponent = null;
-            showEmptyProperties();
-        }
-        if (canvas.querySelectorAll('.canvas-component').length === 0) {
-            showEmptyCanvas();
-        }
-    });
+    // Setup handlers
+    setupComponentHandlers(wrapper);
 
     canvas.appendChild(wrapper);
     selectComponent(wrapper);
+    saveToLocalStorage();
+}
+
+// Add component to container
+function addComponentToContainer(type, containerId) {
+    const containerWrapper = document.querySelector(`.canvas-component[data-id="${containerId}"]`);
+    if (!containerWrapper) return;
+
+    const container = containerWrapper.__componentData;
+    
+    const component = templates[type]();
+    component.id = `comp-${++componentCounter}`;
+    
+    container.children.push(component);
+    
+    // Re-render container
+    updateComponent(containerWrapper);
+    selectComponent(containerWrapper);
+    saveToLocalStorage();
+}
+
+// Setup component event handlers
+function setupComponentHandlers(wrapper) {
+    // Click to select
+    wrapper.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('delete-btn') && !e.target.classList.contains('delete-child-btn')) {
+            selectComponent(wrapper);
+        }
+        e.stopPropagation();
+    });
+
+    // Delete button
+    const deleteBtn = wrapper.querySelector('.delete-btn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            wrapper.remove();
+            if (selectedComponent === wrapper) {
+                selectedComponent = null;
+                showEmptyProperties();
+            }
+            if (canvas.querySelectorAll('.canvas-component').length === 0) {
+                showEmptyCanvas();
+            }
+            saveToLocalStorage();
+        });
+    }
+
+    // Delete child buttons
+    wrapper.querySelectorAll('.delete-child-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const childEl = e.target.closest('.container-child');
+            const childId = childEl.dataset.childId;
+            const component = wrapper.__componentData;
+            
+            component.children = component.children.filter(c => c.id !== childId);
+            updateComponent(wrapper);
+            saveToLocalStorage();
+        });
+    });
 }
 
 // Select component
@@ -154,6 +251,11 @@ function selectComponent(wrapper) {
 // Show properties panel
 function showProperties(component) {
     propertiesPanel.innerHTML = '';
+
+    if (component.properties.length === 0) {
+        propertiesPanel.innerHTML = '<p class="empty-state">No editable properties</p>';
+        return;
+    }
 
     component.properties.forEach(prop => {
         const group = document.createElement('div');
@@ -176,7 +278,8 @@ function showProperties(component) {
         input.value = component[prop.name];
         input.addEventListener('input', (e) => {
             component[prop.name] = e.target.value;
-            updateComponent();
+            updateComponent(selectedComponent);
+            saveToLocalStorage();
         });
 
         group.appendChild(input);
@@ -193,22 +296,95 @@ function showEmptyCanvas() {
 }
 
 // Update component render
-function updateComponent() {
-    if (selectedComponent) {
-        const component = selectedComponent.__componentData;
-        const deleteBtn = selectedComponent.querySelector('.delete-btn');
-        selectedComponent.innerHTML = component.render();
-        selectedComponent.appendChild(deleteBtn);
+function updateComponent(wrapper) {
+    if (!wrapper) wrapper = selectedComponent;
+    if (!wrapper) return;
+    
+    const component = wrapper.__componentData;
+    const deleteBtn = wrapper.querySelector('.delete-btn');
+    wrapper.innerHTML = component.render();
+    wrapper.appendChild(deleteBtn);
+    
+    // Re-setup handlers after render
+    setupComponentHandlers(wrapper);
+}
+
+// Save to localStorage
+function saveToLocalStorage() {
+    const components = Array.from(canvas.querySelectorAll('.canvas-component')).map(wrapper => {
+        return serializeComponent(wrapper.__componentData);
+    });
+    localStorage.setItem('playground', JSON.stringify(components));
+}
+
+// Serialize component with children
+function serializeComponent(component) {
+    const data = { ...component, render: undefined, properties: undefined };
+    if (component.children) {
+        data.children = component.children.map(c => serializeComponent(c));
+    }
+    return data;
+}
+
+// Load from localStorage
+function loadFromLocalStorage() {
+    const saved = localStorage.getItem('playground');
+    if (!saved) return false;
+    
+    try {
+        const components = JSON.parse(saved);
+        
+        // Clear canvas
+        canvas.innerHTML = '';
+        
+        components.forEach(data => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'canvas-component';
+            wrapper.dataset.id = data.id;
+            
+            // Recreate component with template
+            const component = templates[data.type]();
+            Object.assign(component, data);
+            component.render = templates[data.type]().render;
+            component.properties = templates[data.type]().properties;
+            
+            // Recreate children
+            if (component.children) {
+                component.children = component.children.map(childData => {
+                    const child = templates[childData.type]();
+                    Object.assign(child, childData);
+                    child.render = templates[childData.type]().render;
+                    child.properties = templates[childData.type]().properties;
+                    return child;
+                });
+            }
+            
+            wrapper.__componentData = component;
+            wrapper.innerHTML = `${component.render()}<button class="delete-btn">✕</button>`;
+            
+            setupComponentHandlers(wrapper);
+            canvas.appendChild(wrapper);
+            
+            if (data.id > componentCounter) {
+                componentCounter = data.id.replace('comp-', '') * 1;
+            }
+        });
+        
+        return true;
+    } catch (e) {
+        console.error('Failed to load:', e);
+        return false;
     }
 }
 
 // Clear canvas
 document.getElementById('clearBtn').addEventListener('click', () => {
-    if (confirm('Clear all components?')) {
+    if (confirm('Clear all components? This will also clear your saved work.')) {
         selectedComponent = null;
         showEmptyCanvas();
         showEmptyProperties();
         componentCounter = 0;
+        localStorage.removeItem('playground');
     }
 });
 
@@ -242,12 +418,28 @@ document.getElementById('exportBtn').addEventListener('click', () => {
             font-size: 1rem;
             cursor: pointer;
         }
+        .comp-button button:hover {
+            background: #5568d3;
+        }
         .comp-input input {
             width: 100%;
             padding: 0.5rem;
             border: 1px solid #e1e4e8;
             border-radius: 4px;
             font-size: 1rem;
+        }
+        .comp-checkbox label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+        }
+        .comp-link a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        .comp-link a:hover {
+            text-decoration: underline;
         }
         .comp-code {
             background: #1e1e1e;
@@ -256,20 +448,46 @@ document.getElementById('exportBtn').addEventListener('click', () => {
             border-radius: 4px;
             font-family: Monaco, Menlo, monospace;
             font-size: 0.9rem;
+            overflow-x: auto;
         }
         .comp-container {
             padding: 1rem;
-            border: 1px dashed #ccc;
+            border: 1px solid #e1e4e8;
             border-radius: 4px;
+            background: #f9fafb;
+        }
+        .container-child {
+            margin-bottom: 0.5rem;
+        }
+        .container-child:last-child {
+            margin-bottom: 0;
         }
     </style>
 </head>
 <body>
-${components.map(comp => comp.__componentData.render()).join('\n    ')}
+${components.map(comp => renderExportComponent(comp.__componentData)).join('\n    ')}
 </body>
 </html>`;
 
     navigator.clipboard.writeText(html).then(() => {
         alert('HTML exported to clipboard! 🎉\n\nPaste it into a .html file and open in your browser.');
     });
+});
+
+// Render component for export (handles children)
+function renderExportComponent(component) {
+    if (component.type === 'container' && component.children.length > 0) {
+        return `<div class="comp-container">
+    ${component.children.map(c => `    ${renderExportComponent(c)}`).join('\n')}
+</div>`;
+    }
+    return component.render();
+}
+
+// Load saved playground on startup
+window.addEventListener('DOMContentLoaded', () => {
+    const loaded = loadFromLocalStorage();
+    if (!loaded) {
+        showEmptyCanvas();
+    }
 });
