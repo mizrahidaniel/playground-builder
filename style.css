@@ -394,3 +394,214 @@ header h1 {
 ::-webkit-scrollbar-thumb:hover {
     background: #a1a1a1;
 }
+
+/* ========================================
+   Keyboard Shortcuts UI
+   ======================================== */
+
+/* Notification toast */
+.keyboard-notification {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: #2d3748;
+    color: white;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 10000;
+    pointer-events: none;
+}
+
+.keyboard-notification.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Help overlay */
+.keyboard-help-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    animation: fadeIn 0.2s ease;
+    backdrop-filter: blur(4px);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.keyboard-help-modal {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 500px;
+    width: 90%;
+    animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.keyboard-help-modal h2 {
+    margin-bottom: 1.5rem;
+    color: #2d3748;
+    font-size: 1.5rem;
+}
+
+.shortcut-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.shortcut-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem;
+    background: #f7fafc;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.shortcut-item:hover {
+    background: #edf2f7;
+}
+
+.shortcut-item kbd {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: white;
+    border: 1px solid #cbd5e0;
+    border-radius: 4px;
+    font-family: 'SF Mono', Monaco, Menlo, monospace;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #2d3748;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    min-width: 2rem;
+    text-align: center;
+}
+
+.shortcut-item kbd + kbd {
+    margin-left: 0.25rem;
+}
+
+.shortcut-item span {
+    flex: 1;
+    text-align: right;
+    color: #4a5568;
+    font-size: 0.9rem;
+}
+
+.close-help-btn {
+    width: 100%;
+    padding: 0.75rem;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.close-help-btn:hover {
+    background: #5568d3;
+}
+
+.close-help-btn:active {
+    transform: scale(0.98);
+}
+
+/* Help button in toolbar */
+.help-btn {
+    background: #f7fafc !important;
+    color: #4a5568 !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+.help-btn:hover {
+    background: #edf2f7 !important;
+    color: #2d3748 !important;
+}
+
+/* Toolbar container */
+.toolbar {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.toolbar-btn {
+    padding: 0.5rem 0.75rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+/* Visual feedback for keyboard actions */
+.canvas-component.selected {
+    animation: pulse 0.3s ease;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.02);
+    }
+}
+
+/* Keyboard navigation hint */
+.canvas-component.selected::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border: 2px solid #667eea;
+    border-radius: 6px;
+    pointer-events: none;
+    animation: borderPulse 2s ease-in-out infinite;
+}
+
+@keyframes borderPulse {
+    0%, 100% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 1;
+    }
+}
