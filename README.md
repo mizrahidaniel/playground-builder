@@ -48,6 +48,35 @@ A visual drag-and-drop builder for creating interactive code demos and playgroun
 ### Interactive Demo
 1. Create Container with multiple inputs
 2. Add Buttons for actions
+
+## ⌨️ Keyboard Shortcuts
+
+Boost your productivity with these keyboard shortcuts:
+
+| Shortcut | Action |
+|----------|--------|
+| <kbd>Delete</kbd> or <kbd>Backspace</kbd> | Delete selected component |
+| <kbd>Ctrl/⌘</kbd> + <kbd>D</kbd> | Duplicate selected component |
+| <kbd>Ctrl/⌘</kbd> + <kbd>Z</kbd> | Undo last action |
+| <kbd>Ctrl/⌘</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd> | Redo action |
+| <kbd>↑</kbd> / <kbd>↓</kbd> | Navigate between components |
+| <kbd>Esc</kbd> | Deselect component |
+| <kbd>?</kbd> | Show keyboard shortcuts help |
+
+### Undo/Redo System
+
+The playground includes a full history system:
+- **50-step history** - Undo/redo up to 50 actions
+- **Preserved selection** - Component selection is maintained across undo/redo
+- **Smart state capture** - Automatically captures state after each change
+
+### Component Duplication
+
+Duplicate components instantly with <kbd>Ctrl/⌘</kbd> + <kbd>D</kbd>:
+- Copies all properties
+- Deep-clones nested children in containers
+- Auto-generates unique IDs
+- Inserts directly after the selected component
 3. Add Links for navigation
 4. Export as standalone demo
 
